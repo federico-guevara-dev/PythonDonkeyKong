@@ -42,8 +42,38 @@ En este primer hito de desarrollo se aplicaron mejoras sustanciales a la base de
 
 ---
 
-## 4. Historial de Commits (Bitácora de Desarrollo)
+## 4. Modificaciones Fase 2: Interfaz Gráfica Tkinter y Sistema de Correos
+
+Para dar cumplimiento a los puntos 4.a, 4.b y 4.c del trabajo práctico, se desarrolló un módulo completo de interfaz gráfica en Tkinter (`gui_launcher.py`):
+
+### 4.a Configuración de Correo Electrónico Remitente
+- Implementación de campos para la cuenta emisora (`federicoguevaradev@gmail.com`) y contraseña de aplicación SMTP.
+- Se incorporó un **Modo de Prueba / Simulación Segura**, permitiendo validar el paquete MIME y simular envíos sin necesidad de ingresar contraseñas personales en computadoras compartidas de la escuela.
+- Soporte de envíos en vivo mediante protocolo seguro `smtplib` con SSL/TLS (`smtp.gmail.com:465`).
+
+### 4.b Inserción de Imágenes Personalizadas
+- **Banner Gráfico:** Se insertó la imagen personalizada `dk2.png` en el encabezado del panel de control de Tkinter mediante `tk.PhotoImage` con escalado proporcional.
+- **Adjunto de Imágenes:** Selector con `filedialog` que permite adjuntar imágenes personalizadas a los correos electrónicos mediante la clase `MIMEImage`.
+
+### 4.c Menú de Destinatarios con OptionMenu() y Entrada Manual
+- Se integró el widget requerido `OptionMenu()` con las siguientes opciones predefinidas:
+  - `[DOCENTE 1] fjcoronati@gmail.com (Prof. Federico Coronati)` *(Preseleccionado por defecto)*
+  - `[DOCENTE 2] mfedullo@gmail.com (Prof. Fedullo)`
+  - `[DOCENTE 3] docente3.programacion@escuela.edu.ar (Docente Programación 3)`
+  - `[PROPIO] federicoguevaradev@gmail.com (Email del Alumno)`
+  - `[COMPAÑERO] companero1.informatica@escuela.edu.ar`
+  - `[OTRO] Escribir otro correo manualmente en el campo inferior...`
+- **Campo Entry Sincronizado:** Al seleccionar un destinatario del `OptionMenu()`, el campo `Entry` se actualiza automáticamente. Si se selecciona "Otro", el campo se limpia y enfoca para permitir tipear cualquier dirección manual. El sistema toma siempre el correo escrito en este campo para el envío.
+- **Auto-Generador de Reportes:** Botón para redactar automáticamente un reporte formal con fecha, hora, autor, puntaje y enlace al fork de GitHub.
+
+### Captura de Pantalla: Panel GUI Tkinter con OptionMenu y Banner
+![Panel GUI Principal](docs/captura_gui_principal.png)
+
+---
+
+## 5. Historial de Commits (Bitácora de Desarrollo)
 
 | N° | Commit | Descripción |
 |:---:|---|---|
 | **1** | `feat: optimizacion de sprites con smoothscale y documentacion inicial en README` | Carga de sprites en alta definición con filtrado bilineal y canal alfa; resolución adaptable a netbooks escolares e inicio del informe README.md. |
+| **2** | `feat: interfaz Tkinter con OptionMenu de destinatarios y actualizacion de README` | Creación de `gui_launcher.py` con `OptionMenu()`, `Entry` manual, configuración SMTP, banner `dk2.png` y actualización del informe en README.md. |

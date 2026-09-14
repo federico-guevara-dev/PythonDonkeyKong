@@ -94,10 +94,59 @@ En esta fase se implementó la conexión bidireccional entre la interfaz gráfic
 
 ---
 
-## 6. Historial de Commits (Bitácora de Desarrollo)
+## 6. Modificaciones Fase 4: Compilación a Ejecutable e Informe Final
+
+### Compilación a Ejecutable `.exe` en Carpeta `output/` (Punto 5 del TP)
+Se utilizó la librería **PyInstaller** para compilar la aplicación completa en un único archivo ejecutable autónomo para Windows de 64 bits:
+```
+output/DonkeyKong.exe
+```
+- Empaqueta el intérprete de Python, las dependencias de Pygame y Tkinter, y todos los recursos (`assets/`, imágenes, fuentes).
+- No requiere tener Python ni librerías instaladas en la PC de destino.
+- Tamaño optimizado: ~22 MB (totalmente compatible con las políticas de Git y GitHub).
+
+### Comprobación de Envío de Correo (Punto 6 del TP)
+Se verificó el funcionamiento del envío de correos y la correcta recepción del mensaje con el reporte de la partida.
+
+![Confirmación de Envío](docs/captura_envio_email.png)
+
+---
+
+## 7. Historial Completo de Commits (Punto 7 del TP)
+
+Cada etapa del desarrollo fue registrada de manera progresiva, actualizando la documentación del archivo `README.md` junto con cada funcionalidad implementada:
 
 | N° | Commit | Descripción |
 |:---:|---|---|
 | **1** | `feat: optimizacion de sprites con smoothscale y documentacion inicial en README` | Carga de sprites en alta definición con filtrado bilineal y canal alfa; resolución adaptable a netbooks escolares e inicio del informe README.md. |
 | **2** | `feat: interfaz Tkinter con OptionMenu de destinatarios y actualizacion de README` | Creación de `gui_launcher.py` con `OptionMenu()`, `Entry` manual, configuración SMTP, banner `dk2.png` y actualización del informe en README.md. |
 | **3** | `feat: integracion de lanzador con Pygame, script iniciar.bat y registro en README` | Conexión bidireccional entre Tkinter y Pygame con actualización de puntuaciones, script `iniciar.bat` y guía de ejecución en README.md. |
+| **4** | `build: compilacion de ejecutable en carpeta output e informe final en README` | Compilación de `output/DonkeyKong.exe` con PyInstaller, comprobante de envío de correo y finalización del informe en README.md. |
+
+---
+
+## 8. Instrucciones de Instalación y Ejecución
+
+### Opción A: Ejecutar el Archivo Compilado (Recomendada)
+1. Descargar o clonar este repositorio.
+2. Ingresar a la carpeta `output/`.
+3. Ejecutar haciendo doble clic en `DonkeyKong.exe`.
+
+### Opción B: Ejecutar desde Código Fuente (Python)
+1. Clonar el repositorio:
+   ```bash
+   git clone https://github.com/federico-guevara-dev/PythonDonkeyKong.git
+   cd PythonDonkeyKong
+   ```
+2. Instalar las dependencias requeridas:
+   ```bash
+   pip install pygame
+   ```
+3. Iniciar la aplicación:
+   ```bash
+   # Opción 1: Mediante el script automático
+   iniciar.bat
+
+   # Opción 2: Mediante Python
+   python main.py
+   ```

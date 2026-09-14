@@ -71,9 +71,33 @@ Para dar cumplimiento a los puntos 4.a, 4.b y 4.c del trabajo práctico, se desa
 
 ---
 
-## 5. Historial de Commits (Bitácora de Desarrollo)
+## 5. Modificaciones Fase 3: Integración de Módulos y Script de Inicio
+
+En esta fase se implementó la conexión bidireccional entre la interfaz gráfica Tkinter y el juego en Pygame:
+- **Control de Ciclo de Vida:** Al hacer clic en `▶ INICIAR DONKEY KONG REBUILD`, la ventana de Tkinter se oculta limpiamente (`root.withdraw()`). Pygame se inicializa y ejecuta la partida. Al terminar (vidas agotadas o tecla ESC), Pygame se cierra de forma segura y Tkinter vuelve a primer plano (`root.deiconify()`).
+- **Sincronización de Puntuaciones:** La GUI actualiza en tiempo real el último puntaje y el récord histórico (*High Score*). Además, actualiza automáticamente el cuerpo del correo con el reporte de la partida recién jugada.
+- **Acceso Directo para Windows (`iniciar.bat`):** Creación de un archivo batch que permite iniciar la aplicación completa con un solo clic, gestionando automáticamente el intérprete de Python en Windows.
+
+### Instrucciones de Ejecución desde Código Fuente
+1. Instalar dependencias:
+   ```bash
+   pip install pygame
+   ```
+2. Iniciar la aplicación:
+   ```bash
+   # Opción 1: Mediante el script automático
+   iniciar.bat
+
+   # Opción 2: Mediante Python
+   python main.py
+   ```
+
+---
+
+## 6. Historial de Commits (Bitácora de Desarrollo)
 
 | N° | Commit | Descripción |
 |:---:|---|---|
 | **1** | `feat: optimizacion de sprites con smoothscale y documentacion inicial en README` | Carga de sprites en alta definición con filtrado bilineal y canal alfa; resolución adaptable a netbooks escolares e inicio del informe README.md. |
 | **2** | `feat: interfaz Tkinter con OptionMenu de destinatarios y actualizacion de README` | Creación de `gui_launcher.py` con `OptionMenu()`, `Entry` manual, configuración SMTP, banner `dk2.png` y actualización del informe en README.md. |
+| **3** | `feat: integracion de lanzador con Pygame, script iniciar.bat y registro en README` | Conexión bidireccional entre Tkinter y Pygame con actualización de puntuaciones, script `iniciar.bat` y guía de ejecución en README.md. |

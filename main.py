@@ -366,8 +366,8 @@ class Barrel(pygame.sprite.Sprite):
         self.bottom = self.rect
 
     def update(self, fire_trig):
-        if self.y_change < 8 and not self.falling:
-            self.y_change += 2
+        if self.y_change < 4 and not self.falling:
+            self.y_change += 0.5
         for i in range(len(plats)):
             if self.bottom.colliderect(plats[i]):
                 self.y_change = 0
@@ -411,9 +411,9 @@ class Barrel(pygame.sprite.Sprite):
             if below.colliderect(lad) and not self.falling and not self.check_lad:
                 self.check_lad = True
                 already_collided = True
-                if random.randint(0, 5) == 0:
+                if random.randint(0, 3) == 0:
                     self.falling = True
-                    self.y_change = 4
+                    self.y_change = 3
         if not already_collided:
             self.check_lad = False
 

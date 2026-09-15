@@ -229,10 +229,7 @@ class DonkeyKongAppGUI:
         self.options_map = {
             "[DOCENTE 1] fjcoronati@gmail.com (Prof. Federico Coronati)": "fjcoronati@gmail.com",
             "[DOCENTE 2] mfedullo@gmail.com (Prof. Fedullo)": "mfedullo@gmail.com",
-            "[DOCENTE 3] docente3.programacion@escuela.edu.ar (Docente Programacion 3)": "docente3.programacion@escuela.edu.ar",
-            "[PROPIO] federicoguevaradev@gmail.com (Email del Alumno)": "federicoguevaradev@gmail.com",
-            "[COMPAÑERO] companero1.informatica@escuela.edu.ar": "companero1.informatica@escuela.edu.ar",
-            "[OTRO] Escribir otro correo manualmente en el campo inferior...": ""
+            "[COMPAÑERO] tobiasreyeros62@gmail.com (Tobias Reyeros)": "tobiasreyeros62@gmail.com",
         }
 
         self.menu_keys = list(self.options_map.keys())

@@ -242,6 +242,8 @@ class Player(pygame.sprite.Sprite):
         self.hammer_box = self.rect
         self.rect.center = (x_pos, y_pos)
         self.over_barrel = False
+        self.jump_origin_y = y_pos
+        self.max_jump_height = int(2.5 * section_height)
         self.bottom = pygame.rect.Rect(self.rect.left, self.rect.bottom - 20, self.rect.width, 20)
 
     def update(self):
@@ -251,8 +253,13 @@ class Player(pygame.sprite.Sprite):
                 self.landed = True
                 if not self.climbing:
                     self.rect.centery = plats[i].top - self.rect.height / 2 + 1
+        if self.landed:
+            self.jump_origin_y = self.rect.centery
         if not self.landed and not self.climbing:
             self.y_change += 0.25
+            # Cap jump height to prevent reaching the platform above
+            if self.y_change < 0 and self.jump_origin_y - self.rect.centery >= self.max_jump_height:
+                self.y_change = 0.25
         self.rect.move_ip(self.x_change * self.x_speed, self.y_change)
         self.bottom = pygame.rect.Rect(self.rect.left, self.rect.bottom - 20, self.rect.width, 20)
         if self.x_change != 0 or (self.climbing and self.y_change != 0):
@@ -404,7 +411,7 @@ class Barrel(pygame.sprite.Sprite):
             if below.colliderect(lad) and not self.falling and not self.check_lad:
                 self.check_lad = True
                 already_collided = True
-                if random.randint(0, 60) == 60:
+                if random.randint(0, 5) == 0:
                     self.falling = True
                     self.y_change = 4
         if not already_collided:
@@ -477,9 +484,11 @@ class Flame(pygame.sprite.Sprite):
             if self.rect.colliderect(lad) and not self.climbing and not self.check_lad:
                 self.check_lad = True
                 already_collided = True
-                if random.randint(0, 120) == 120:
+                # Higher chance to climb when below the player
+                climb_chance = 6 if self.rect.centery > player.rect.centery else 10
+                if random.randint(0, climb_chance) == 0:
                     self.climbing = True
-                    self.y_change = - 4
+                    self.y_change = -4
         if not already_collided:
             self.check_lad = False
         if self.rect.bottom < row6_y:
@@ -494,6 +503,14 @@ class Flame(pygame.sprite.Sprite):
             self.row = 2
         else:
             self.row = 1
+
+    def pursue_player(self):
+        """Make the flame tend to move towards the player's X position"""
+        if random.randint(0, 9) < 7:  # 70% chance to pursue
+            if player.rect.centerx > self.rect.centerx:
+                self.x_change = abs(self.x_change)
+            elif player.rect.centerx < self.rect.centerx:
+                self.x_change = -abs(self.x_change)
 
 
 class Bridge:
@@ -740,6 +757,7 @@ def run_game(existing_high_score=0):
 
         for f in list(flames):
             f.check_climb()
+            f.pursue_player()
             if f.rect.colliderect(player.hitbox):
                 reset_game = True
         flames.draw(screen)
@@ -771,7 +789,7 @@ def run_game(existing_high_score=0):
                     player.dir = -1
                 if event.key == pygame.K_SPACE and player.landed:
                     player.landed = False
-                    player.y_change = -6
+                    player.y_change = -4.5
                 if event.key == pygame.K_UP:
                     if climb:
                         player.y_change = -2

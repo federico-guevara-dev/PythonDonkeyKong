@@ -1,10 +1,10 @@
 {
-    "sender_email": "elcrack35158@gmail.com",
-    "sender_pass": "",
-    "smtp_server": "smtp.gmail.com",
-    "smtp_port": 465,
-    "simulation_mode": false,
-    "high_score": 4700,
-    "last_score": 4700,
-    "last_recipient": "fjcoronati@gmail.com"
+  "high_score": 4700,
+  "last_score": 4200,
+  "last_recipient": "fjcoronati@gmail.com",
+  "simulation_mode": false,
+  "sender_email": "elcrack35158@gmail.com",
+  "sender_pass": "",
+  "smtp_server": "smtp.gmail.com",
+  "smtp_port": 465
 }

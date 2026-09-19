@@ -122,7 +122,7 @@ def init_game():
     section_height = window_height // 32
     slope = max(1, section_height // 8)
 
-    barrel_spawn_time = 360
+    barrel_spawn_time = 140
     barrel_count = barrel_spawn_time / 2
     barrel_time = 360
 
@@ -225,7 +225,7 @@ class Player(pygame.sprite.Sprite):
     def __init__(self, x_pos, y_pos):
         pygame.sprite.Sprite.__init__(self)
         self.y_change = 0
-        self.x_speed = 3
+        self.x_speed = 4
         self.x_change = 0
         self.landed = False
         self.pos = 0
@@ -256,10 +256,10 @@ class Player(pygame.sprite.Sprite):
         if self.landed:
             self.jump_origin_y = self.rect.centery
         if not self.landed and not self.climbing:
-            self.y_change += 0.25
+            self.y_change += 0.5
             # Cap jump height to prevent reaching the platform above
             if self.y_change < 0 and self.jump_origin_y - self.rect.centery >= self.max_jump_height:
-                self.y_change = 0.25
+                self.y_change = 0.5
         self.rect.move_ip(self.x_change * self.x_speed, self.y_change)
         self.bottom = pygame.rect.Rect(self.rect.left, self.rect.bottom - 20, self.rect.width, 20)
         if self.x_change != 0 or (self.climbing and self.y_change != 0):
@@ -311,24 +311,24 @@ class Player(pygame.sprite.Sprite):
 
     def calc_hitbox(self):
         if not self.hammer:
-            self.hitbox = pygame.rect.Rect((self.rect[0] + 15, self.rect[1] + 5),
-                                           (self.rect[2] - 30, self.rect[3] - 10))
+            self.hitbox = pygame.rect.Rect((self.rect.left + 10, self.rect.top + 10),
+                                           (self.rect.width - 20, self.rect.height - 15))
         elif self.hammer_pos == 0:
             if self.dir == 1:
-                self.hitbox = pygame.rect.Rect((self.rect[0], self.rect[1] + 5),
-                                               (self.rect[2] - 30, self.rect[3] - 10))
-                self.hammer_box = pygame.rect.Rect((self.hitbox[0] + self.hitbox[2], self.rect[1] + 5),
-                                                   (self.hitbox[2], self.rect[3] - 10))
+                self.hitbox = pygame.rect.Rect((self.rect.left + 5, self.rect.top + 10),
+                                               (self.rect.width - 20, self.rect.height - 15))
+                self.hammer_box = pygame.rect.Rect((self.hitbox.right, self.rect.top + 5),
+                                                   (30, self.rect.height - 10))
             else:
-                self.hitbox = pygame.rect.Rect((self.rect[0] + 40, self.rect[1] + 5),
-                                               (self.rect[2] - 30, self.rect[3] - 10))
-                self.hammer_box = pygame.rect.Rect((self.hitbox[0] - self.hitbox[2], self.rect[1] + 5),
-                                                   (self.hitbox[2], self.rect[3] - 10))
+                self.hitbox = pygame.rect.Rect((self.rect.left + 15, self.rect.top + 10),
+                                               (self.rect.width - 20, self.rect.height - 15))
+                self.hammer_box = pygame.rect.Rect((self.hitbox.left - 30, self.rect.top + 5),
+                                                   (30, self.rect.height - 10))
         else:
-            self.hitbox = pygame.rect.Rect((self.rect[0] + 15, self.rect[1] + 5),
-                                           (self.rect[2] - 30, self.rect[3] - 10))
-            self.hammer_box = pygame.rect.Rect((self.hitbox[0], self.hitbox[1] - section_height),
-                                               (self.hitbox[2], section_height))
+            self.hitbox = pygame.rect.Rect((self.rect.left + 10, self.rect.top + 10),
+                                           (self.rect.width - 20, self.rect.height - 15))
+            self.hammer_box = pygame.rect.Rect((self.hitbox.left, self.hitbox.top - section_height),
+                                               (self.hitbox.width, section_height))
 
 
 class Hammer(pygame.sprite.Sprite):
@@ -363,25 +363,28 @@ class Barrel(pygame.sprite.Sprite):
         self.oil_collision = False
         self.falling = False
         self.check_lad = False
-        self.bottom = self.rect
+        self.hitbox = self.rect.inflate(-15, -15)
+        self.bottom = pygame.rect.Rect((self.rect.left, self.rect.bottom), (self.rect.width, 3))
 
     def update(self, fire_trig):
-        if self.y_change < 4 and not self.falling:
-            self.y_change += 0.5
-        for i in range(len(plats)):
-            if self.bottom.colliderect(plats[i]):
+        if self.y_change < 7 and not self.falling:
+            self.y_change += 0.8
+        for p in plats:
+            if self.bottom.colliderect(p) and self.y_change >= 0:
                 self.y_change = 0
                 self.falling = False
-        if self.rect.colliderect(oil_drum):
+                self.rect.bottom = p.top + 1
+        self.hitbox = self.rect.inflate(-15, -15)
+        if self.hitbox.colliderect(oil_drum):
             if not self.oil_collision:
                 self.oil_collision = True
                 if random.randint(0, 4) == 4:
                     fire_trig = True
         if not self.falling:
             if row5_top >= self.rect.bottom or row3_top >= self.rect.bottom >= row4_top or row1_top > self.rect.bottom >= row2_top:
-                self.x_change = 3
+                self.x_change = 4.5
             else:
-                self.x_change = -3
+                self.x_change = -4.5
         else:
             self.x_change = 0
         self.rect.move_ip(self.x_change, self.y_change)
@@ -413,7 +416,7 @@ class Barrel(pygame.sprite.Sprite):
                 already_collided = True
                 if random.randint(0, 3) == 0:
                     self.falling = True
-                    self.y_change = 3
+                    self.y_change = 5
         if not already_collided:
             self.check_lad = False
 
@@ -430,16 +433,17 @@ class Flame(pygame.sprite.Sprite):
         self.pos = 1
         self.count = 0
         self.x_count = 0
-        self.x_change = 2
+        self.x_change = 3
         self.x_max = 4
         self.y_change = 0
         self.row = 1
         self.check_lad = False
         self.climbing = False
+        self.hitbox = self.rect.inflate(-15, -15)
 
     def update(self):
         if self.y_change < 3 and not self.climbing:
-            self.y_change += 0.25
+            self.y_change += 0.5
         for i in range(len(plats)):
             if self.rect.colliderect(plats[i]):
                 self.climbing = False
@@ -475,6 +479,7 @@ class Flame(pygame.sprite.Sprite):
             else:
                 self.image = pygame.transform.flip(fireball2, True, False)
         self.rect.move_ip(self.x_change, self.y_change)
+        self.hitbox = self.rect.inflate(-15, -15)
         if self.rect.top > window_height or self.rect.top < 0:
             self.kill()
 
@@ -652,7 +657,7 @@ def draw_kong():
 def check_climb():
     can_climb = False
     climb_down = False
-    under = pygame.rect.Rect((player.rect[0], player.rect[1] + 2 * section_height), (player.rect[2], player.rect[3]))
+    under = pygame.rect.Rect((player.rect.left, player.rect.top + 2 * section_height), (player.rect.width, player.rect.height))
     for lad in lads:
         if player.hitbox.colliderect(lad) and not can_climb:
             can_climb = True
@@ -665,11 +670,11 @@ def check_climb():
 
 def barrel_collide(reset):
     global score
-    under = pygame.rect.Rect((player.rect[0], player.rect[1] + 2 * section_height), (player.rect[2], player.rect[3]))
+    under = pygame.rect.Rect((player.rect.left, player.rect.top + 2 * section_height), (player.rect.width, player.rect.height))
     for brl in barrels:
-        if brl.rect.colliderect(player.hitbox):
+        if brl.hitbox.colliderect(player.hitbox):
             reset = True
-        elif not player.landed and not player.over_barrel and under.colliderect(brl):
+        elif not player.landed and not player.over_barrel and under.colliderect(brl.hitbox):
             player.over_barrel = True
             score += 100
     if player.landed:
@@ -694,7 +699,7 @@ def reset():
     player.kill()
     player = Player(250, window_height - 130)
     first_fireball_trigger = False
-    barrel_spawn_time = 360
+    barrel_spawn_time = 140
     barrel_count = barrel_spawn_time / 2
     victory = False
 
@@ -758,7 +763,7 @@ def run_game(existing_high_score=0):
         for f in list(flames):
             f.check_climb()
             f.pursue_player()
-            if f.rect.colliderect(player.hitbox):
+            if f.hitbox.colliderect(player.hitbox):
                 reset_game = True
         flames.draw(screen)
         flames.update()
@@ -789,7 +794,7 @@ def run_game(existing_high_score=0):
                     player.dir = -1
                 if event.key == pygame.K_SPACE and player.landed:
                     player.landed = False
-                    player.y_change = -4.5
+                    player.y_change = -6.5
                 if event.key == pygame.K_UP:
                     if climb:
                         player.y_change = -2

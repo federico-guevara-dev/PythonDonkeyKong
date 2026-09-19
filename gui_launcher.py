@@ -1,502 +1,272 @@
 # -*- coding: utf-8 -*-
-"""
-Donkey Kong Rebuild - GUI Launcher & Sistema de Envio de Correos
-Trabajo Practico de Laboratorio N°2: Interfaz Grafica de Usuario (GUI) y GitHub Fork
-Autor: Federico Guevara
-Docente: Prof. Federico Coronati (fjcoronati@gmail.com)
-"""
+"""Donkey Kong Rebuild - GUI Launcher & Envio de Correos (TP2)
+Autor: Federico Guevara | Docente: Prof. Federico Coronati"""
 
-import os
-import sys
-import json
-import time
-import smtplib
-import ssl
+import os,sys,json,time,smtplib,ssl,threading
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.image import MIMEImage
-import threading
 import tkinter as tk
-from tkinter import ttk, messagebox, scrolledtext, filedialog
+from tkinter import ttk,messagebox,scrolledtext,filedialog
 
-def resource_path(relative_path):
-    """Obtiene la ruta absoluta al recurso, compatible con desarrollo y PyInstaller"""
-    try:
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(base_path, relative_path)
+# Variables de entorno para credenciales
+EMAIL_REMITENTE=os.environ.get("DK_EMAIL","elcrack35158@gmail.com")
+EMAIL_PASSWORD=os.environ.get("DK_EMAIL_PASS","")
+SMTP_SERVER=os.environ.get("DK_SMTP_SERVER","smtp.gmail.com")
+SMTP_PORT=int(os.environ.get("DK_SMTP_PORT","465"))
+ALUMNO=os.environ.get("DK_ALUMNO","Federico Guevara")
+REPO_URL=os.environ.get("DK_REPO","https://github.com/federico-guevara-dev/PythonDonkeyKong")
 
-CONFIG_FILE = resource_path('config.json')
+def resource_path(p):
+    try: base=sys._MEIPASS
+    except: base=os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base,p)
+
+CONFIG_FILE=resource_path("config.json")
 
 def load_config():
-    default_config = {
-        'sender_email': 'federicoguevaradev@gmail.com',
-        'sender_pass': '',
-        'smtp_server': 'smtp.gmail.com',
-        'smtp_port': 465,
-        'simulation_mode': True,
-        'high_score': 0,
-        'last_score': 0,
-        'last_recipient': 'fjcoronati@gmail.com'
-    }
+    cfg={"high_score":0,"last_score":0,"last_recipient":"fjcoronati@gmail.com","simulation_mode":True}
     if os.path.exists(CONFIG_FILE):
         try:
-            with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                default_config.update(data)
-        except Exception:
-            pass
-    return default_config
+            with open(CONFIG_FILE,"r",encoding="utf-8") as f: cfg.update(json.load(f))
+        except: pass
+    return cfg
 
-def save_config(config):
+def save_config(cfg):
     try:
-        with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
-            json.dump(config, f, indent=4)
-    except Exception as e:
-        print(f"Error guardando config: {e}")
+        with open(CONFIG_FILE,"w",encoding="utf-8") as f: json.dump(cfg,f,indent=2)
+    except: pass
 
 
-class DonkeyKongAppGUI:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Donkey Kong Rebuild - Panel GUI & Envio de Correos (TP2)")
-        self.root.geometry("820x760")
-        self.root.minsize(760, 680)
+class App:
+    def __init__(self,root):
+        self.root=root
+        self.root.title("Donkey Kong Rebuild - Panel GUI (TP2)")
+        self.root.geometry("780x620")
+        self.root.configure(bg="#1a1a2e")
+        self.cfg=load_config()
+        self.img_adjunta=resource_path("dk2.png")
+        self._build()
+        self._update_scores()
 
-        self.config = load_config()
-        self.custom_attached_image = resource_path('dk2.png')
+    def _build(self):
+        bg="#1a1a2e"
+        fg="#eee"
+        card_bg="#16213e"
+        accent="#e94560"
 
-        self.style = ttk.Style()
-        try:
-            self.style.theme_use('clam')
-        except Exception:
-            pass
+        # Titulo
+        tk.Label(self.root,text="🦍 Donkey Kong Rebuild",font=("Segoe UI",18,"bold"),
+                 fg=accent,bg=bg).pack(pady=(12,2))
+        tk.Label(self.root,text=f"TP2 - {ALUMNO}",font=("Segoe UI",10),
+                 fg="#888",bg=bg).pack()
 
-        self._configure_styles()
-        self._build_ui()
-        self.update_scores_ui()
+        # Juego
+        game=tk.Frame(self.root,bg=card_bg,padx=12,pady=10)
+        game.pack(fill="x",padx=15,pady=8)
 
-    def _configure_styles(self):
-        primary_color = "#1E293B"
-        accent_color = "#E11D48"
-        bg_light = "#F8FAFC"
+        row=tk.Frame(game,bg=card_bg)
+        row.pack(fill="x")
 
-        self.root.configure(bg=bg_light)
-        self.style.configure('TFrame', background=bg_light)
-        self.style.configure('TLabel', font=('Segoe UI', 9), background=bg_light)
-        self.style.configure('Header.TLabel', font=('Segoe UI', 16, 'bold'), foreground=primary_color, background=bg_light)
-        self.style.configure('SubHeader.TLabel', font=('Segoe UI', 10), foreground="#64748B", background=bg_light)
-        self.style.configure('Play.TButton', font=('Segoe UI', 11, 'bold'), foreground="#FFFFFF", background=accent_color)
-        self.style.map('Play.TButton', background=[('active', '#BE123C')])
+        tk.Button(row,text="▶ JUGAR",font=("Segoe UI",12,"bold"),fg="#fff",bg=accent,
+                  activebackground="#c81e45",relief="flat",padx=20,pady=6,cursor="hand2",
+                  command=self._play).pack(side="left")
 
-    def _build_ui(self):
-        main_canvas = tk.Canvas(self.root, bg="#F8FAFC", highlightthickness=0)
-        scrollbar = ttk.Scrollbar(self.root, orient="vertical", command=main_canvas.yview)
-        self.scrollable_frame = ttk.Frame(main_canvas)
+        sf=tk.Frame(row,bg="#0f3460",padx=10,pady=4)
+        sf.pack(side="left",fill="x",expand=True,padx=(12,0))
+        self.lbl_score=tk.Label(sf,text="Puntaje: 0",font=("Segoe UI",10,"bold"),fg=fg,bg="#0f3460")
+        self.lbl_score.pack(anchor="w")
+        self.lbl_high=tk.Label(sf,text="Record: 0",font=("Segoe UI",10,"bold"),fg="#0f9b58",bg="#0f3460")
+        self.lbl_high.pack(anchor="w")
 
-        self.scrollable_frame.bind(
-            "<Configure>",
-            lambda e: main_canvas.configure(scrollregion=main_canvas.bbox("all"))
-        )
+        tk.Label(game,text="← → Moverse | Espacio: Saltar | ↑↓ Escaleras | ESC: Salir",
+                 font=("Segoe UI",8),fg="#666",bg=card_bg).pack(anchor="w",pady=(6,0))
 
-        main_canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
-        main_canvas.configure(yscrollcommand=scrollbar.set)
+        # Email
+        email=tk.Frame(self.root,bg=card_bg,padx=12,pady=10)
+        email.pack(fill="x",padx=15,pady=4)
 
-        main_canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
+        tk.Label(email,text="✉ Envio de Correo",font=("Segoe UI",12,"bold"),
+                 fg=fg,bg=card_bg).pack(anchor="w",pady=(0,6))
 
-        def _on_mousewheel(event):
-            main_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
-        main_canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        # Remitente (desde variable de entorno)
+        r1=tk.Frame(email,bg=card_bg)
+        r1.pack(fill="x",pady=2)
+        tk.Label(r1,text="De:",font=("Segoe UI",9),fg=fg,bg=card_bg,width=10,anchor="w").pack(side="left")
+        self.ent_from=ttk.Entry(r1,width=30)
+        self.ent_from.insert(0,EMAIL_REMITENTE)
+        self.ent_from.pack(side="left",padx=(0,10))
+        tk.Label(r1,text="Pass:",font=("Segoe UI",9),fg=fg,bg=card_bg).pack(side="left")
+        self.ent_pass=ttk.Entry(r1,width=20,show="*")
+        self.ent_pass.insert(0,EMAIL_PASSWORD)
+        self.ent_pass.pack(side="left")
 
-        self._build_header(self.scrollable_frame)
-        self._build_game_card(self.scrollable_frame)
-        self._build_email_card(self.scrollable_frame)
+        # Simulacion
+        r1b=tk.Frame(email,bg=card_bg)
+        r1b.pack(fill="x",pady=2)
+        self.sim_var=tk.BooleanVar(value=self.cfg.get("simulation_mode",True))
+        tk.Checkbutton(r1b,text="Modo simulado (no requiere password real)",
+                       variable=self.sim_var,font=("Segoe UI",9),fg="#4fc3f7",bg=card_bg,
+                       selectcolor=card_bg,activebackground=card_bg).pack(side="left")
 
-    def _build_header(self, parent):
-        header_frame = ttk.Frame(parent, padding="15 10 15 5")
-        header_frame.pack(fill="x", padx=15, pady=5)
+        # Destinatario con OptionMenu
+        r2=tk.Frame(email,bg=card_bg)
+        r2.pack(fill="x",pady=2)
+        tk.Label(r2,text="Para:",font=("Segoe UI",9),fg=fg,bg=card_bg,width=10,anchor="w").pack(side="left")
 
-        self.banner_img = None
-        img_path = resource_path('dk2.png')
-        if os.path.exists(img_path):
-            try:
-                raw_img = tk.PhotoImage(file=img_path)
-                sub_factor = max(1, raw_img.height() // 100)
-                self.banner_img = raw_img.subsample(sub_factor, sub_factor)
-                banner_label = ttk.Label(header_frame, image=self.banner_img, background="#F8FAFC")
-                banner_label.pack(side="left", padx=(0, 15))
-            except Exception as e:
-                print(f"No se pudo cargar la imagen del banner: {e}")
-
-        text_frame = ttk.Frame(header_frame)
-        text_frame.pack(side="left", fill="y")
-
-        title_lbl = ttk.Label(text_frame, text="Donkey Kong Rebuild (HD) - Panel de Control", style='Header.TLabel')
-        title_lbl.pack(anchor="w")
-
-        sub_text = "TP N° 2: Interfaz Grafica de Usuario (GUI) y GitHub Fork | Alumno: Federico Guevara"
-        sub_lbl = ttk.Label(text_frame, text=sub_text, style='SubHeader.TLabel')
-        sub_lbl.pack(anchor="w")
-
-        prof_lbl = ttk.Label(text_frame, text="Docentes: Prof. Federico Coronati (fjcoronati@gmail.com) | Prof. Fedullo (mfedullo@gmail.com)",
-                             font=('Segoe UI', 9, 'italic'), foreground="#475569", background="#F8FAFC")
-        prof_lbl.pack(anchor="w")
-
-    def _build_game_card(self, parent):
-        card = tk.Frame(parent, bg="#FFFFFF", relief='solid', borderwidth=1, padx=15, pady=12)
-        card.pack(fill="x", padx=15, pady=6)
-
-        header = tk.Label(card, text="🎮 Control del Juego Donkey Kong (Pygame HD)",
-                          font=('Segoe UI', 11, 'bold'), fg="#0F172A", bg="#FFFFFF")
-        header.pack(anchor="w", pady=(0, 8))
-
-        row_frame = tk.Frame(card, bg="#FFFFFF")
-        row_frame.pack(fill="x")
-
-        play_btn = tk.Button(row_frame, text="▶  INICIAR DONKEY KONG REBUILD",
-                             font=('Segoe UI', 11, 'bold'), fg="#FFFFFF", bg="#E11D48",
-                             activebackground="#BE123C", activeforeground="#FFFFFF",
-                             cursor="hand2", padx=15, pady=8, relief='flat',
-                             command=self.launch_game)
-        play_btn.pack(side="left", padx=(0, 20))
-
-        scores_frame = tk.Frame(row_frame, bg="#F1F5F9", padx=15, pady=6, relief='groove', bd=1)
-        scores_frame.pack(side="left", fill="x", expand=True)
-
-        self.score_lbl = tk.Label(scores_frame, text="Ultimo Puntaje: 0 pts",
-                                  font=('Segoe UI', 10, 'bold'), fg="#1E293B", bg="#F1F5F9")
-        self.score_lbl.pack(anchor="w")
-
-        self.high_score_lbl = tk.Label(scores_frame, text="Record Historico (High Score): 0 pts",
-                                       font=('Segoe UI', 10, 'bold'), fg="#059669", bg="#F1F5F9")
-        self.high_score_lbl.pack(anchor="w")
-
-        controls_text = "Controles: Flechas Izq/Der: Moverse | Espacio: Saltar | Flechas Arriba/Abajo: Escaleras | ESC: Volver al Panel"
-        controls_lbl = tk.Label(card, text=controls_text, font=('Segoe UI', 8), fg="#64748B", bg="#FFFFFF")
-        controls_lbl.pack(anchor="w", pady=(8, 0))
-
-    def _build_email_card(self, parent):
-        card = tk.Frame(parent, bg="#FFFFFF", relief='solid', borderwidth=1, padx=15, pady=12)
-        card.pack(fill="x", padx=15, pady=6)
-
-        header = tk.Label(card, text="✉️ Sistema de Envio de Correos Electronicos (Requisitos 4.a, 4.b, 4.c)",
-                          font=('Segoe UI', 11, 'bold'), fg="#0F172A", bg="#FFFFFF")
-        header.pack(anchor="w", pady=(0, 8))
-
-        # --- SECCION 4.a: CONFIGURACION REMITENTE ---
-        cfg_frame = tk.LabelFrame(card, text=" 4.a Configuracion de Correo Remitente ",
-                                  font=('Segoe UI', 9, 'bold'), fg="#334155", bg="#FFFFFF", padx=10, pady=8)
-        cfg_frame.pack(fill="x", pady=(0, 10))
-
-        row1 = tk.Frame(cfg_frame, bg="#FFFFFF")
-        row1.pack(fill="x", pady=2)
-
-        tk.Label(row1, text="Email Remitente:", font=('Segoe UI', 9), bg="#FFFFFF", width=14, anchor="w").pack(side="left")
-        self.sender_entry = ttk.Entry(row1, width=32)
-        self.sender_entry.insert(0, self.config.get('sender_email', 'federicoguevaradev@gmail.com'))
-        self.sender_entry.pack(side="left", padx=(0, 15))
-
-        tk.Label(row1, text="Contraseña App / Token:", font=('Segoe UI', 9), bg="#FFFFFF", width=18, anchor="w").pack(side="left")
-        self.pass_entry = ttk.Entry(row1, width=22, show="*")
-        self.pass_entry.insert(0, self.config.get('sender_pass', ''))
-        self.pass_entry.pack(side="left")
-
-        row2 = tk.Frame(cfg_frame, bg="#FFFFFF")
-        row2.pack(fill="x", pady=(6, 2))
-
-        self.sim_var = tk.BooleanVar(value=self.config.get('simulation_mode', True))
-        sim_check = tk.Checkbutton(row2, text="Modo de Prueba / Simulacion Segura (no requiere contrasena real de Gmail)",
-                                   variable=self.sim_var, font=('Segoe UI', 9, 'bold'),
-                                   fg="#0284C7", bg="#FFFFFF", activebackground="#FFFFFF")
-        sim_check.pack(side="left")
-
-        self.show_pass_var = tk.BooleanVar(value=False)
-        def _toggle_pass():
-            self.pass_entry.configure(show="" if self.show_pass_var.get() else "*")
-        show_pass_cb = tk.Checkbutton(row2, text="Mostrar contraseña", variable=self.show_pass_var,
-                                      font=('Segoe UI', 8), bg="#FFFFFF", activebackground="#FFFFFF",
-                                      command=_toggle_pass)
-        show_pass_cb.pack(side="right")
-
-        # --- SECCION 4.c: DESTINATARIO CON OptionMenu() Y ENTRADA MANUAL ---
-        dest_frame = tk.LabelFrame(card, text=" 4.c Seleccion de Destinatario (OptionMenu y Entrada Manual) ",
-                                   font=('Segoe UI', 9, 'bold'), fg="#334155", bg="#FFFFFF", padx=10, pady=8)
-        dest_frame.pack(fill="x", pady=(0, 10))
-
-        # Lista requerida por la consigna con fjcoronati y mfedullo incluidos por defecto:
-        self.options_map = {
-            "[DOCENTE 1] fjcoronati@gmail.com (Prof. Federico Coronati)": "fjcoronati@gmail.com",
-            "[DOCENTE 2] mfedullo@gmail.com (Prof. Fedullo)": "mfedullo@gmail.com",
-            "[COMPAÑERO] tobiasreyeros62@gmail.com (Tobias Reyeros)": "tobiasreyeros62@gmail.com",
+        self.opciones={
+            "fjcoronati@gmail.com (Prof. Coronati)":"fjcoronati@gmail.com",
+            "mfedullo@gmail.com (Prof. Fedullo)":"mfedullo@gmail.com",
+            "tobiasreyeros62@gmail.com (Tobias)":"tobiasreyeros62@gmail.com",
         }
+        keys=list(self.opciones.keys())
+        self.sel_opt=tk.StringVar(value=keys[0])
+        tk.OptionMenu(r2,self.sel_opt,*keys,command=self._on_select).pack(side="left",padx=(0,8))
 
-        self.menu_keys = list(self.options_map.keys())
-        default_option = self.menu_keys[0]  # fjcoronati@gmail.com por predeterminado
-        self.selected_option = tk.StringVar(value=default_option)
+        self.ent_to=ttk.Entry(r2)
+        self.ent_to.insert(0,self.cfg.get("last_recipient","fjcoronati@gmail.com"))
+        self.ent_to.pack(side="left",fill="x",expand=True)
 
-        menu_row = tk.Frame(dest_frame, bg="#FFFFFF")
-        menu_row.pack(fill="x", pady=(0, 6))
+        # Asunto
+        r3=tk.Frame(email,bg=card_bg)
+        r3.pack(fill="x",pady=2)
+        tk.Label(r3,text="Asunto:",font=("Segoe UI",9),fg=fg,bg=card_bg,width=10,anchor="w").pack(side="left")
+        self.ent_subj=ttk.Entry(r3)
+        self.ent_subj.insert(0,f"[TP2] Reporte Donkey Kong - {ALUMNO}")
+        self.ent_subj.pack(side="left",fill="x",expand=True)
 
-        tk.Label(menu_row, text="Menu OptionMenu():", font=('Segoe UI', 9, 'bold'),
-                 bg="#FFFFFF", width=18, anchor="w").pack(side="left")
+        # Imagen
+        r4=tk.Frame(email,bg=card_bg)
+        r4.pack(fill="x",pady=2)
+        tk.Label(r4,text="Imagen:",font=("Segoe UI",9),fg=fg,bg=card_bg,width=10,anchor="w").pack(side="left")
+        self.img_var=tk.StringVar(value=self.img_adjunta)
+        tk.Label(r4,textvariable=self.img_var,font=("Segoe UI",8),fg="#4fc3f7",bg="#0f3460",
+                 anchor="w",padx=4).pack(side="left",fill="x",expand=True,padx=(0,6))
+        ttk.Button(r4,text="...",width=3,command=self._browse).pack(side="right")
 
-        self.option_menu = tk.OptionMenu(
-            menu_row,
-            self.selected_option,
-            *self.menu_keys,
-            command=self._on_option_selected
-        )
-        self.option_menu.configure(bg="#F8FAFC", activebackground="#E2E8F0",
-                                   font=('Segoe UI', 9), relief='groove', highlightthickness=1)
-        self.option_menu.pack(side="left", fill="x", expand=True)
+        # Mensaje
+        tk.Label(email,text="Mensaje:",font=("Segoe UI",9),fg=fg,bg=card_bg).pack(anchor="w",pady=(4,0))
+        self.txt_msg=scrolledtext.ScrolledText(email,height=5,font=("Consolas",9),wrap="word")
+        self.txt_msg.pack(fill="both",expand=True,pady=(2,6))
+        self._gen_reporte()
 
-        entry_row = tk.Frame(dest_frame, bg="#FFFFFF")
-        entry_row.pack(fill="x", pady=2)
+        # Boton enviar
+        r5=tk.Frame(email,bg=card_bg)
+        r5.pack(fill="x")
+        tk.Button(r5,text="📤 ENVIAR",font=("Segoe UI",10,"bold"),fg="#fff",bg="#0284c7",
+                  activebackground="#026aa7",relief="flat",padx=16,pady=5,cursor="hand2",
+                  command=self._send_thread).pack(side="left")
+        self.lbl_status=tk.Label(r5,text="Listo",font=("Segoe UI",9),fg="#0f9b58",bg=card_bg)
+        self.lbl_status.pack(side="left",padx=10)
 
-        tk.Label(entry_row, text="Correo Destinatario:", font=('Segoe UI', 9),
-                 bg="#FFFFFF", width=18, anchor="w").pack(side="left")
+    def _on_select(self,sel):
+        email=self.opciones.get(sel,"")
+        self.ent_to.delete(0,tk.END)
+        if email: self.ent_to.insert(0,email)
 
-        self.dest_entry = ttk.Entry(entry_row)
-        # Pre-cargar con el correo predeterminado (fjcoronati@gmail.com)
-        initial_dest = self.config.get('last_recipient', 'fjcoronati@gmail.com')
-        self.dest_entry.insert(0, initial_dest)
-        self.dest_entry.pack(side="left", fill="x", expand=True)
+    def _browse(self):
+        f=filedialog.askopenfilename(filetypes=[("Imagenes","*.png *.jpg *.jpeg *.gif *.bmp")])
+        if f:
+            self.img_adjunta=f
+            self.img_var.set(f)
 
-        hint_lbl = tk.Label(dest_frame,
-                            text="Nota: Puedes seleccionar del menu (fjcoronati, mfedullo, etc.) o escribir directamente en el campo de texto.",
-                            font=('Segoe UI', 8, 'italic'), fg="#64748B", bg="#FFFFFF")
-        hint_lbl.pack(anchor="w", pady=(2, 0))
+    def _gen_reporte(self):
+        s=self.cfg.get("last_score",0)
+        h=self.cfg.get("high_score",0)
+        t=time.strftime("%d/%m/%Y %H:%M:%S")
+        txt=(f"Reporte TP2 - Donkey Kong Rebuild\n"
+             f"Alumno: {ALUMNO}\n"
+             f"Fecha: {t}\n"
+             f"Puntaje: {s} pts | Record: {h} pts\n"
+             f"Repo: {REPO_URL}\n\n"
+             f"Saludos,\n{ALUMNO}")
+        self.txt_msg.delete("1.0",tk.END)
+        self.txt_msg.insert("1.0",txt)
 
-        # --- SECCION CONTENIDO DEL MENSAJE E IMAGEN (4.b) ---
-        msg_frame = tk.LabelFrame(card, text=" 4.b Imagen Personalizada y Mensaje ",
-                                  font=('Segoe UI', 9, 'bold'), fg="#334155", bg="#FFFFFF", padx=10, pady=8)
-        msg_frame.pack(fill="x", pady=(0, 10))
+    def _update_scores(self):
+        self.lbl_score.configure(text=f"Puntaje: {self.cfg.get('last_score',0)}")
+        self.lbl_high.configure(text=f"Record: {self.cfg.get('high_score',0)}")
 
-        subj_row = tk.Frame(msg_frame, bg="#FFFFFF")
-        subj_row.pack(fill="x", pady=2)
-
-        tk.Label(subj_row, text="Asunto del Email:", font=('Segoe UI', 9),
-                 bg="#FFFFFF", width=18, anchor="w").pack(side="left")
-
-        self.subject_entry = ttk.Entry(subj_row)
-        self.subject_entry.insert(0, "[TP2 Laboratorio GUI] Reporte de Partida Donkey Kong - Federico Guevara")
-        self.subject_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
-
-        gen_btn = ttk.Button(subj_row, text="📋 Auto-Generar Reporte", command=self.generate_report_text)
-        gen_btn.pack(side="right")
-
-        img_row = tk.Frame(msg_frame, bg="#FFFFFF")
-        img_row.pack(fill="x", pady=(4, 6))
-
-        tk.Label(img_row, text="Imagen Personalizada:", font=('Segoe UI', 9),
-                 bg="#FFFFFF", width=18, anchor="w").pack(side="left")
-
-        self.img_path_var = tk.StringVar(value=self.custom_attached_image)
-        self.img_lbl = tk.Label(img_row, textvariable=self.img_path_var, font=('Segoe UI', 8),
-                                fg="#0284C7", bg="#F1F5F9", relief='sunken', anchor="w", padx=6)
-        self.img_lbl.pack(side="left", fill="x", expand=True, padx=(0, 8))
-
-        browse_btn = ttk.Button(img_row, text="Examinar...", command=self.browse_custom_image)
-        browse_btn.pack(side="right")
-
-        tk.Label(msg_frame, text="Cuerpo del Mensaje:", font=('Segoe UI', 9), bg="#FFFFFF").pack(anchor="w")
-        self.msg_text = scrolledtext.ScrolledText(msg_frame, height=7, font=('Consolas', 9), wrap="word")
-        self.msg_text.pack(fill="both", expand=True, pady=(2, 6))
-        self.generate_report_text()
-
-        action_row = tk.Frame(card, bg="#FFFFFF")
-        action_row.pack(fill="x", pady=(4, 0))
-
-        self.send_btn = tk.Button(action_row, text="📤  ENVIAR CORREO ELECTRONICO",
-                                  font=('Segoe UI', 10, 'bold'), fg="#FFFFFF", bg="#0284C7",
-                                  activebackground="#0369A1", activeforeground="#FFFFFF",
-                                  cursor="hand2", padx=20, pady=7, relief='flat',
-                                  command=self.send_email_thread)
-        self.send_btn.pack(side="left", padx=(0, 15))
-
-        self.status_lbl = tk.Label(action_row, text="Listo para enviar.", font=('Segoe UI', 9),
-                                   fg="#10B981", bg="#FFFFFF")
-        self.status_lbl.pack(side="left", fill="x", expand=True)
-
-    def _on_option_selected(self, selected_label):
-        email = self.options_map.get(selected_label, "")
-        self.dest_entry.delete(0, tk.END)
-        if email:
-            self.dest_entry.insert(0, email)
-        else:
-            self.dest_entry.focus()
-
-    def browse_custom_image(self):
-        filename = filedialog.askopenfilename(
-            title="Seleccionar Imagen Personalizada",
-            filetypes=[("Archivos de Imagen", "*.png *.jpg *.jpeg *.gif *.bmp"), ("Todos los archivos", "*.*")]
-        )
-        if filename:
-            self.custom_attached_image = filename
-            self.img_path_var.set(filename)
-
-    def generate_report_text(self):
-        last_s = self.config.get('last_score', 0)
-        high_s = self.config.get('high_score', 0)
-        timestamp = time.strftime("%d/%m/%Y %H:%M:%S")
-
-        report = (
-            f"Estimado docente / compañero:\n\n"
-            f"Adjunto el reporte de actividad correspondiente al Trabajo Practico de Laboratorio N°2:\n"
-            f"----------------------------------------------------------------------\n"
-            f"PROYECTO: Donkey Kong Rebuild (Python con Pygame + GUI Tkinter)\n"
-            f"ALUMNO: Federico Guevara\n"
-            f"FECHA Y HORA: {timestamp}\n"
-            f"PUNTAJE OBTENIDO EN LA PARTIDA: {last_s} pts\n"
-            f"RECORD HISTORICO (HIGH SCORE): {high_s} pts\n"
-            f"ESTADO DE LA PARTIDA: Finalizada con exito\n"
-            f"REPOSITORIO GITHUB (FORK): https://github.com/federico-guevara-dev/PythonDonkeyKong\n"
-            f"----------------------------------------------------------------------\n"
-            f"El proyecto cuenta con sprites en alta resolucion (smoothscale), menu de\n"
-            f"seleccion de destinatarios con OptionMenu(), entrada manual de correo,\n"
-            f"imagenes personalizadas y ejecutable compilado en la carpeta 'output/'.\n\n"
-            f"Saludos cordiales,\n"
-            f"Federico Guevara"
-        )
-        self.msg_text.delete("1.0", tk.END)
-        self.msg_text.insert("1.0", report)
-
-    def update_scores_ui(self):
-        last_s = self.config.get('last_score', 0)
-        high_s = self.config.get('high_score', 0)
-        self.score_lbl.configure(text=f"Ultimo Puntaje: {last_s} pts")
-        self.high_score_lbl.configure(text=f"Record Historico (High Score): {high_s} pts")
-
-    def launch_game(self):
+    def _play(self):
         self.root.withdraw()
         try:
             import main
-            current_high = self.config.get('high_score', 0)
-            score, high = main.run_game(current_high)
-            self.config['last_score'] = score
-            self.config['high_score'] = max(high, self.config.get('high_score', 0))
-            save_config(self.config)
+            score,high=main.run_game(self.cfg.get("high_score",0))
+            self.cfg["last_score"]=score
+            self.cfg["high_score"]=max(high,self.cfg.get("high_score",0))
+            save_config(self.cfg)
         except Exception as e:
-            messagebox.showerror("Error al ejecutar el juego", f"Ocurrio un problema: {e}")
+            messagebox.showerror("Error",str(e))
         finally:
             self.root.deiconify()
-            self.update_scores_ui()
-            self.generate_report_text()
-            messagebox.showinfo(
-                "Partida Finalizada",
-                f"Has terminado la partida con un puntaje de: {self.config.get('last_score', 0)} pts.\n"
-                f"El reporte de email ha sido actualizado con tu puntuacion."
-            )
+            self._update_scores()
+            self._gen_reporte()
 
-    def send_email_thread(self):
-        t = threading.Thread(target=self._send_email_worker)
-        t.daemon = True
+    def _send_thread(self):
+        t=threading.Thread(target=self._send,daemon=True)
         t.start()
 
-    def _send_email_worker(self):
-        sender = self.sender_entry.get().strip()
-        recipient = self.dest_entry.get().strip()
-        subject = self.subject_entry.get().strip()
-        body = self.msg_text.get("1.0", tk.END).strip()
-        is_simulation = self.sim_var.get()
-        password = self.pass_entry.get().strip()
+    def _send(self):
+        sender=self.ent_from.get().strip()
+        to=self.ent_to.get().strip()
+        subj=self.ent_subj.get().strip()
+        body=self.txt_msg.get("1.0",tk.END).strip()
+        passw=self.ent_pass.get().strip()
+        sim=self.sim_var.get()
 
-        if not sender:
-            messagebox.showwarning("Atención", "Por favor ingresa un correo remitente.")
-            return
-        if not recipient:
-            messagebox.showwarning("Atención", "Por favor selecciona o escribe un correo destinatario (Requerimiento 4.c).")
-            return
-        if not subject:
-            messagebox.showwarning("Atención", "Por favor escribe un asunto para el correo.")
+        if not sender or not to or not subj:
+            messagebox.showwarning("Faltan datos","Completa remitente, destinatario y asunto.")
             return
 
-        self.send_btn.configure(state="disabled")
-        self.status_lbl.configure(text="Enviando correo...", fg="#0284C7")
+        self.lbl_status.configure(text="Enviando...",fg="#4fc3f7")
+        self.cfg["last_recipient"]=to
+        self.cfg["simulation_mode"]=sim
+        save_config(self.cfg)
 
-        self.config['sender_email'] = sender
-        self.config['simulation_mode'] = is_simulation
-        self.config['last_recipient'] = recipient
-        save_config(self.config)
-
-        if is_simulation:
-            time.sleep(1.2)
-            timestamp = time.strftime("%H:%M:%S")
-            self.status_lbl.configure(text=f"Correo enviado exitosamente a {recipient} (Modo Simulado)", fg="#10B981")
-            self.send_btn.configure(state="normal")
-
-            messagebox.showinfo(
-                "Envío Exitoso (Modo Simulado / Demostración)",
-                f"¡Correo transmitido correctamente!\n\n"
-                f"• De: {sender}\n"
-                f"• Para: {recipient}\n"
-                f"• Asunto: {subject}\n"
-                f"• Imagen adjunta: {os.path.basename(self.custom_attached_image)}\n\n"
-                f"El contenido ha sido verificado y cumple con los requisitos del TP2.\n"
-                f"Puedes tomar una captura de esta confirmación para tu informe."
-            )
+        if sim:
+            time.sleep(0.8)
+            self.lbl_status.configure(text=f"Enviado a {to} (simulado)",fg="#0f9b58")
+            messagebox.showinfo("Enviado (Simulado)",
+                f"De: {sender}\nPara: {to}\nAsunto: {subj}")
             return
 
         try:
-            if not password:
-                raise ValueError("Para envio real necesitas ingresar la contraseña de aplicación de tu correo.")
+            if not passw:
+                raise ValueError("Necesitas password de app para envio real.")
 
-            msg = MIMEMultipart()
-            msg['From'] = sender
-            msg['To'] = recipient
-            msg['Subject'] = subject
-            msg.attach(MIMEText(body, 'plain', 'utf-8'))
+            msg=MIMEMultipart()
+            msg["From"]=sender
+            msg["To"]=to
+            msg["Subject"]=subj
+            msg.attach(MIMEText(body,"plain","utf-8"))
 
-            if self.custom_attached_image and os.path.exists(self.custom_attached_image):
-                try:
-                    with open(self.custom_attached_image, 'rb') as f:
-                        img_data = f.read()
-                    image_part = MIMEImage(img_data, name=os.path.basename(self.custom_attached_image))
-                    msg.attach(image_part)
-                except Exception as img_err:
-                    print(f"Error adjuntando imagen: {img_err}")
+            if self.img_adjunta and os.path.exists(self.img_adjunta):
+                with open(self.img_adjunta,"rb") as f:
+                    msg.attach(MIMEImage(f.read(),name=os.path.basename(self.img_adjunta)))
 
-            smtp_server = self.config.get('smtp_server', 'smtp.gmail.com')
-            smtp_port = int(self.config.get('smtp_port', 465))
-
-            context = ssl.create_default_context()
-            if smtp_port == 465:
-                with smtplib.SMTP_SSL(smtp_server, smtp_port, context=context) as server:
-                    server.login(sender, password)
-                    server.send_message(msg)
+            ctx=ssl.create_default_context()
+            port=SMTP_PORT
+            if port==465:
+                with smtplib.SMTP_SSL(SMTP_SERVER,port,context=ctx) as s:
+                    s.login(sender,passw)
+                    s.send_message(msg)
             else:
-                with smtplib.SMTP(smtp_server, smtp_port) as server:
-                    server.starttls(context=context)
-                    server.login(sender, password)
-                    server.send_message(msg)
+                with smtplib.SMTP(SMTP_SERVER,port) as s:
+                    s.starttls(context=ctx)
+                    s.login(sender,passw)
+                    s.send_message(msg)
 
-            self.status_lbl.configure(text=f"Correo enviado exitosamente a {recipient} vía SMTP real!", fg="#10B981")
-            messagebox.showinfo(
-                "Envío Real Exitoso",
-                f"El email ha sido enviado con éxito a través del servidor SMTP.\n\n"
-                f"Destinatario: {recipient}\n"
-                f"Asunto: {subject}\n\n"
-                f"Revisa tu bandeja de entrada o la del destinatario para la captura del informe."
-            )
+            self.lbl_status.configure(text=f"Enviado a {to}",fg="#0f9b58")
+            messagebox.showinfo("Enviado",f"Correo enviado a {to}")
         except Exception as e:
-            self.status_lbl.configure(text=f"Error en el envío: {e}", fg="#EF4444")
-            messagebox.showerror(
-                "Error de Envío SMTP",
-                f"No se pudo enviar el correo vía SMTP real:\n{e}\n\n"
-                f"Consejo: Puedes activar el 'Modo de Prueba / Simulación Segura' para demostrar "
-                f"el funcionamiento de la GUI sin necesidad de contraseñas de aplicación."
-            )
-        finally:
-            self.send_btn.configure(state="normal")
+            self.lbl_status.configure(text=f"Error: {e}",fg="#e94560")
+            messagebox.showerror("Error",str(e))
 
 
 def main():
-    root = tk.Tk()
-    app = DonkeyKongAppGUI(root)
+    root=tk.Tk()
+    App(root)
     root.mainloop()
 
-
-if __name__ == '__main__':
+if __name__=="__main__":
     main()
